@@ -2,6 +2,10 @@
 
 **English** | [中文](./README.zh-CN.md)
 
+> **Perps require an invite** — activate first via this link:  
+> **[https://polymarket.com/zh/perps?c=00kzjwdi](https://polymarket.com/zh/perps?c=00kzjwdi)**  
+> Then deposit **pUSD** into your **perps account** (prediction-market funds cannot be used for grids).
+
 > A local desktop app for grid trading on [Polymarket Perps](https://polymarket.com/zh/perps?c=00kzjwdi) perpetual futures. The UI supports **中文, English, 日本語, 한국어, Español, Français, Deutsch, Português, and Русский** — auto-detected from the system locale, or switch anytime from the top-right language picker.
 
 Set a price range and size. The app places buys below the market and sells above it — aiming to profit when price oscillates inside that range.
@@ -29,7 +33,7 @@ Grid trading splits a price band into multiple levels. Roughly:
 3. **Refill on fill** — a buy fill places a sell higher; a sell fill places a buy lower, harvesting swings inside the band.
 4. **Risk & stop** — optional breakout actions, max drawdown, daily loss limits; **Stop** cancels all orders and flattens positions at market.
 
-The app does **not** deposit or withdraw for you. Polymarket has separate **prediction-market** and **perps** balances — this app only uses the perps side, so funding the prediction-market wallet will not work for grids. Perps currently requires an invite — activate via [this link](https://polymarket.com/zh/perps?c=00kzjwdi), then deposit **pUSD** into your **perps account**.
+The app does **not** deposit or withdraw for you. Polymarket has separate **prediction-market** and **perps** balances — this app only uses the perps side, so funding the prediction-market wallet will not work for grids. See the invite link at the top of this README to activate perps.
 
 ## Quick start
 
