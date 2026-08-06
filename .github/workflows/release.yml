@@ -1,0 +1,200 @@
+name: release
+
+# Desktop portable builds only (no installers, no CLI):
+#   Linux AppImage · Windows .exe · macOS .app (Apple Silicon + Intel)
+#
+#   git tag v0.1.1 && git push origin v0.1.1
+#   Or: Actions → release → Run workflow
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create/update (e.g. v0.1.1). Leave empty when triggered by a tag push."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test crates
+        run: cargo test -p grid-engine -p exchange -p storage
+
+  desktop:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-x64
+            platform: ubuntu-22.04
+            rust_target: ""
+            kind: linux-appimage
+          - id: windows-x64
+            platform: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            kind: windows-exe
+          - id: macos-arm64
+            platform: macos-14
+            rust_target: aarch64-apple-darwin
+            kind: macos-app
+          - id: macos-x64
+            platform: macos-14
+            rust_target: x86_64-apple-darwin
+            kind: macos-app
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain (host)
+        if: matrix.rust_target == ''
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust toolchain (cross target)
+        if: matrix.rust_target != ''
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Linux deps
+        if: matrix.kind == 'linux-appimage'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            patchelf libdbus-1-dev libgtk-3-dev libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev
+
+      - name: Frontend install
+        working-directory: apps/desktop
+        run: npm install
+
+      - name: Build Linux AppImage
+        if: matrix.kind == 'linux-appimage'
+        working-directory: apps/desktop
+        run: npm exec -- tauri build --bundles appimage
+
+      - name: Build Windows portable exe
+        if: matrix.kind == 'windows-exe'
+        working-directory: apps/desktop
+        run: npm exec -- tauri build --no-bundle --target ${{ matrix.rust_target }}
+
+      - name: Build macOS .app
+        if: matrix.kind == 'macos-app'
+        working-directory: apps/desktop
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+        run: npm exec -- tauri build --bundles app --target ${{ matrix.rust_target }}
+
+      - name: Collect Linux AppImage
+        if: matrix.kind == 'linux-appimage'
+        shell: bash
+        run: |
+          mkdir -p dist
+          src=$(ls target/release/bundle/appimage/*.AppImage | head -n1)
+          cp -v "$src" dist/polyGrid-linux-x86_64.AppImage
+          chmod +x dist/polyGrid-linux-x86_64.AppImage
+          ls -lah dist
+
+      - name: Collect Windows exe
+        if: matrix.kind == 'windows-exe'
+        shell: bash
+        run: |
+          mkdir -p dist
+          src="target/${{ matrix.rust_target }}/release/polyGrid.exe"
+          if [ ! -f "$src" ]; then
+            src="target/release/polyGrid.exe"
+          fi
+          cp -v "$src" dist/polyGrid-windows-x64.exe
+          ls -lah dist
+
+      - name: Collect macOS .app archive
+        if: matrix.kind == 'macos-app'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          arch_label="${{ matrix.id }}"
+          arch_label="${arch_label#macos-}"
+          app_dir=$(find "target/${{ matrix.rust_target }}/release/bundle/macos" -maxdepth 1 -name '*.app' -type d | head -n1)
+          if [ -z "$app_dir" ]; then
+            echo "No .app found under target/${{ matrix.rust_target }}/release/bundle/macos"
+            find target -name '*.app' -type d | head -20 || true
+            exit 1
+          fi
+          parent=$(dirname "$app_dir")
+          base=$(basename "$app_dir")
+          out="dist/polyGrid-macos-${arch_label}.app.tar.gz"
+          tar -C "$parent" -czf "$out" "$base"
+          ls -lah dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.id }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: [desktop]
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve tag name
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing as: $TAG"
+
+      - name: Download all dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: dist-*
+          merge-multiple: true
+
+      - name: List files
+        run: find artifacts -type f | sort
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: polyGrid ${{ steps.meta.outputs.tag }}
+          draft: false
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          body: |
+            Portable desktop builds (no installers):
+
+            | File | Platform |
+            |------|----------|
+            | `polyGrid-linux-x86_64.AppImage` | Linux x64 — `chmod +x` then run |
+            | `polyGrid-windows-x64.exe` | Windows x64 — double-click |
+            | `polyGrid-macos-arm64.app.tar.gz` | Apple Silicon (M1/M2/M3…) — extract, open `.app` |
+            | `polyGrid-macos-x64.app.tar.gz` | Intel Mac — extract, open `.app` |
+
+            Linux AppImage is built on Ubuntu 22.04 (needs glibc 2.35+; Ubuntu 20.04 not supported).
+          files: artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
