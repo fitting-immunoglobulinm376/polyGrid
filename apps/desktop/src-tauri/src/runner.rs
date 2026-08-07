@@ -274,6 +274,8 @@ pub fn persist_checkpoint(storage: &Storage, engine: &GridEngine, phase: &str) {
 }
 
 pub fn record_fill_ledger(storage: &Storage, session_id: &str, fill: &grid_engine::FillEvent, pnl: Decimal) {
+    // `pnl` is net of fees from the engine; ledger stores gross separately.
+    let gross = pnl + fill.fee;
     let notional = fill.price * fill.size;
     let row = FillLedgerRow {
         session_id: session_id.to_string(),
@@ -292,7 +294,7 @@ pub fn record_fill_ledger(storage: &Storage, session_id: &str, fill: &grid_engin
         crossed: fill.crossed,
         fee: fill.fee,
         fee_token: fill.fee_token.clone(),
-        gross_closed_pnl: fill.closed_pnl.unwrap_or(pnl),
+        gross_closed_pnl: gross,
         position_before: None,
         position_after: None,
         source: "exchange".into(),
@@ -300,6 +302,36 @@ pub fn record_fill_ledger(storage: &Storage, session_id: &str, fill: &grid_engin
     if let Err(e) = storage.record_fill_ledger(&row) {
         warn!("fill ledger: {e}");
     }
+}
+
+fn sort_fills_chronologically(fills: &mut [grid_engine::FillEvent]) {
+    fills.sort_by_key(|f| f.exchange_time_ms.unwrap_or(0));
+}
+
+/// Apply exchange fills in time order. Returns replenish intents from successful fills.
+fn apply_fills_to_engine(
+    storage: &Storage,
+    engine: &mut GridEngine,
+    session_id: &str,
+    mut fills: Vec<grid_engine::FillEvent>,
+    record_ledger: bool,
+) -> Vec<grid_engine::OrderIntent> {
+    sort_fills_chronologically(&mut fills);
+    let mut replenish = Vec::new();
+    for fill in fills {
+        match engine.on_fill(fill.clone()) {
+            Ok((pnl, intent)) => {
+                if record_ledger {
+                    record_fill_ledger(storage, session_id, &fill, pnl);
+                }
+                if let Some(i) = intent {
+                    replenish.push(i);
+                }
+            }
+            Err(e) => warn!("on_fill: {e}"),
+        }
+    }
+    replenish
 }
 
 pub fn record_equity(storage: &Storage, engine: &GridEngine) {
@@ -621,9 +653,9 @@ pub async fn execute_recenter(
     Ok(())
 }
 
-/// Sync engine (+ HL cache) open orders from exchange.
-/// Local-only phantoms are treated as fills (so reverse replenish runs), then
-/// missing grid levels are repaired up toward `target_resting`.
+/// Sync engine (+ PM cache) open orders from exchange.
+/// Stale local orders missing on the exchange are dropped (not simulated as fills).
+/// Missing grid levels are repaired only when the book is fully in sync.
 async fn sync_open_orders_from_exchange(
     st: &mut AppState,
     symbol: &str,
@@ -647,34 +679,58 @@ async fn sync_open_orders_from_exchange(
     let Some(engine) = st.engine.as_mut() else {
         return Ok(vec![]);
     };
-    let local = engine.live_orders().to_vec();
     let session_id = engine.session_id().to_string();
 
-    let mut replenish = Vec::new();
+    // Drain exchange fills we may have missed before inferring phantoms.
+    let mut replenish = if st.mode == RunMode::Simulation {
+        vec![]
+    } else {
+        let live = engine.live_orders().to_vec();
+        if let Some(pm) = st.pm.as_mut() {
+            pm.restore_tracked_orders(&live);
+        }
+        let fills = st
+            .pm
+            .as_mut()
+            .unwrap()
+            .drain_fills()
+            .await
+            .unwrap_or_default();
+        apply_fills_to_engine(&st.storage, engine, &session_id, fills, true)
+    };
+
+    let local = engine.live_orders().to_vec();
+
+    // Exchange says no open orders but we still track locals → desync (2nd instance,
+    // API glitch). Do not phantom-fill, replace with empty, or repair — that triggers
+    // a burst of replenish orders (see repair_hole after replace_open_orders([])).
+    if exchange.is_empty() && !local.is_empty() {
+        warn!(
+            "open-order sync {symbol}: exchange=0 local={} — skipping sync (desync)",
+            local.len()
+        );
+        let _ = st.storage.record_event(
+            "order_sync_desync",
+            &format!("{symbol}: exchange=0 local={} sync_skipped", local.len()),
+        );
+        return Ok(replenish);
+    }
+
     let local_only: Vec<_> = local
         .iter()
         .filter(|l| !exchange.iter().any(|e| orders_same(l, e)))
         .cloned()
         .collect();
     for phantom in &local_only {
-        let fill = GridEngine::synthetic_fill_from_order(phantom);
-        match engine.on_fill(fill.clone()) {
-            Ok((pnl, intent)) => {
-                record_fill_ledger(&st.storage, &session_id, &fill, pnl);
-                warn!(
-                    "phantom order treated as fill {:?} {} @ {}",
-                    fill.side, fill.size, fill.price
-                );
-                let _ = st.storage.record_event(
-                    "phantom_fill",
-                    &format!("{:?} {} @ {}", fill.side, fill.size, fill.price),
-                );
-                if let Some(i) = intent {
-                    replenish.push(i);
-                }
-            }
-            Err(e) => warn!("phantom fill apply failed: {e}"),
-        }
+        // Drop stale local entries only — never simulate fills or replenish from phantoms.
+        warn!(
+            "local order missing on exchange (not a fill): {:?} {} @ {}",
+            phantom.side, phantom.size, phantom.price
+        );
+        let _ = st.storage.record_event(
+            "phantom_drop",
+            &format!("{:?} {} @ {}", phantom.side, phantom.size, phantom.price),
+        );
     }
 
     let local_after = engine.live_orders().to_vec();
@@ -718,18 +774,27 @@ async fn sync_open_orders_from_exchange(
     let mid = engine
         .mid_price
         .unwrap_or_else(|| (engine.active_bounds().0 + engine.active_bounds().1) / Decimal::from(2));
-    match engine.repair_hole_intents(mid) {
-        Ok(extra) if !extra.is_empty() => {
-            info!(
-                "repairing {} missing grid level(s); open={} target={}",
-                extra.len(),
-                engine.live_orders().len(),
-                engine.target_resting
-            );
-            replenish.extend(extra);
+    // Only repair when exchange confirmed open orders — never fill the whole grid in one
+    // burst after a partial desync (local_only non-empty but exchange had some orders).
+    if local_only.is_empty() {
+        match engine.repair_hole_intents(mid) {
+            Ok(extra) if !extra.is_empty() => {
+                info!(
+                    "repairing {} missing grid level(s); open={} target={}",
+                    extra.len(),
+                    engine.live_orders().len(),
+                    engine.target_resting
+                );
+                replenish.extend(extra);
+            }
+            Ok(_) => {}
+            Err(e) => warn!("repair_hole_intents: {e}"),
         }
-        Ok(_) => {}
-        Err(e) => warn!("repair_hole_intents: {e}"),
+    } else if !local_only.is_empty() {
+        warn!(
+            "open-order sync {symbol}: {} local-only order(s) dropped; skipping repair this tick",
+            local_only.len()
+        );
     }
 
     if let Some(pm) = st.pm.as_mut() {
@@ -1256,6 +1321,14 @@ async fn process_fills_and_replenish(
             Ok(())
         }
         Err(e) => {
+            if is_min_notional_error(&e) {
+                warn!("replenish skipped (below min notional): {e}");
+                let _ = st.storage.record_event(
+                    "replenish_skipped",
+                    &format!("{symbol}: {e}"),
+                );
+                return Ok(());
+            }
             if let Some(ev) = st.engine.as_mut().unwrap().note_order_failure(&e.to_string()) {
                 let _ = app.emit("bot-event", &ev);
                 if let EngineEvent::Halted { reason } = ev {
@@ -1271,6 +1344,11 @@ fn is_reduce_only_increase_error(err: &impl std::fmt::Display) -> bool {
     let lower = err.to_string().to_ascii_lowercase();
     lower.contains("reduce only order would increase position")
         || lower.contains("reduce_only order would increase position")
+}
+
+fn is_min_notional_error(err: &impl std::fmt::Display) -> bool {
+    let lower = err.to_string().to_ascii_lowercase();
+    lower.contains("order_below_min_notional") || lower.contains("below min notional")
 }
 
 async fn place_replenish(

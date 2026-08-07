@@ -295,6 +295,15 @@ impl GridEngine {
         }
     }
 
+    /// Grid coin size at `price` from per-level notional budget (not fixed orig_size).
+    /// When price drifts, reusing orig_size can push notional below exchange minimum.
+    fn replenish_size_at(&self, price: Decimal, fallback: Decimal) -> Decimal {
+        match self.config.size_per_level() {
+            Ok(notional) => (notional / price.max(dec!(0.00000001))).round_dp(8),
+            Err(_) => fallback,
+        }
+    }
+
     /// Bootstrap resting grid orders around mid using active bounds.
     pub fn bootstrap_intents(&mut self, mid_price: Decimal) -> GridResult<Vec<OrderIntent>> {
         self.ensure_not_halted()?;
@@ -957,17 +966,18 @@ impl GridEngine {
 
         // Always place the opposite grid order after a fill. Skipping on expand-budget
         // left permanent holes (open count drifts 20 → 19 → 17…).
+        let repl_size = self.replenish_size_at(repl_price, replenish_size);
 
         let mut reduce_budget = self.position_base.abs();
         let reduce_only =
-            self.assign_reduce_only(repl_side, replenish_size, &mut reduce_budget);
+            self.assign_reduce_only(repl_side, repl_size, &mut reduce_budget);
         let client_id = new_order_id();
         let intent = OrderIntent {
             client_id: client_id.clone(),
             symbol: self.config.symbol.clone(),
             side: repl_side,
             price: repl_price.round_dp(8),
-            size: replenish_size,
+            size: repl_size,
             level_index: fill.level_index,
             reduce_only,
             tif: TimeInForce::Gtc,
@@ -1479,6 +1489,28 @@ mod tests {
     }
 
     #[test]
+    fn replenish_size_tracks_budget_at_new_price() {
+        let mut cfg = sample_cfg();
+        cfg.total_budget = dec!(110);
+        cfg.grid_count = 11;
+        cfg.lower_price = dec!(1250);
+        cfg.upper_price = dec!(1465);
+        let engine = GridEngine::new(cfg, RunMode::Simulation, dec!(1000)).unwrap();
+        let per_level = dec!(10); // 110/11
+        let repl_price = dec!(1267.1);
+        let repl_size = engine.replenish_size_at(repl_price, dec!(0.00789));
+        assert!(
+            (repl_price * repl_size - per_level).abs() < dec!(0.05),
+            "repl size {repl_size} @ {repl_price} notional={}",
+            repl_price * repl_size
+        );
+        assert!(
+            repl_size > dec!(0.00789),
+            "lower price should need more coins for same notional"
+        );
+    }
+
+    #[test]
     fn buy_fill_replenishes_sell_above() {
         let mut cfg = sample_cfg();
         cfg.market = crate::MarketKind::Spot;
@@ -1504,12 +1536,17 @@ mod tests {
             closed_pnl: None,
         };
         let buy_price = buy.price;
-        let buy_size = buy.size;
+        let per_level = engine.config.size_per_level().unwrap();
         let (_pnl, replenish) = engine.on_fill(fill).unwrap();
         let sell = replenish.expect("should place sell after buy");
         assert_eq!(sell.side, Side::Sell);
         assert!(sell.price > buy_price);
-        assert_eq!(sell.size, buy_size);
+        assert!(
+            (sell.price * sell.size - per_level).abs() < dec!(0.01),
+            "replenish notional {} should track per-level budget {}",
+            sell.price * sell.size,
+            per_level
+        );
         // Spot long after buy: sell size fits inventory → reduce-only.
         assert!(sell.reduce_only);
     }

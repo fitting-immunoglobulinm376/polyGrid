@@ -1,8 +1,11 @@
 mod i18n_err;
 mod runner;
 
+use std::fs::OpenOptions;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+use fs2::FileExt;
 
 use exchange::{
     check_geoblock, fetch_candles, fetch_live_mid, list_live_markets, list_live_mids, Candle,
@@ -1252,9 +1255,32 @@ async fn save_settings(
     })
 }
 
+/// One process per data directory — prevents two windows fighting the same PM account.
+fn acquire_instance_lock() -> anyhow::Result<std::fs::File> {
+    let dir = resolve_data_dir();
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join(".poly-grid.lock");
+    let file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(&path)?;
+    file.try_lock_exclusive()
+        .map_err(|_| anyhow::anyhow!("another polyGrid instance is already using {}", dir.display()))?;
+    Ok(file)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt().with_env_filter("info").init();
+
+    let _instance_lock = match acquire_instance_lock() {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("{e}");
+            eprintln!("Close the other polyGrid window or use a separate data directory.");
+            std::process::exit(1);
+        }
+    };
 
     let state = AppState::new().expect("storage");
     let state = Arc::new(Mutex::new(state));

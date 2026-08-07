@@ -869,6 +869,11 @@ impl PolymarketExchange {
         qty.round_dp_with_strategy(decimals, RoundingStrategy::ToZero)
     }
 
+    /// Round size up to meet minimum notional after wire rounding.
+    fn ceil_qty(qty: Decimal, decimals: u32) -> Decimal {
+        qty.round_dp_with_strategy(decimals, RoundingStrategy::AwayFromZero)
+    }
+
     fn decimal_to_wire(d: Decimal) -> String {
         let s = format!("{d}");
         if s.contains('.') {
@@ -907,11 +912,24 @@ impl PolymarketExchange {
         let is_buy = matches!(intent.side, Side::Buy);
         let px = Self::round_px(intent.price, meta.price_decimals);
         // Reduce-only must not exceed position; truncate toward zero instead of round-half-up.
-        let qty = if intent.reduce_only {
+        let mut qty = if intent.reduce_only {
             Self::floor_qty(intent.size.abs(), meta.quantity_decimals)
         } else {
             Self::round_qty(intent.size, meta.quantity_decimals)
         };
+        // Wire rounding can push notional below exchange minimum — bump non-RO qty up.
+        if px > Decimal::ZERO {
+            let min_qty = Self::ceil_qty(meta.min_notional / px, meta.quantity_decimals);
+            if px * qty < meta.min_notional {
+                if intent.reduce_only {
+                    return Err(ExchangeError::Other(format!(
+                        "reduce-only 名义约 {} pUSD 低于 Polymarket 最低 ${}（仓位过小无法补单）",
+                        px * qty, meta.min_notional
+                    )));
+                }
+                qty = min_qty;
+            }
+        }
         let notional = px * qty;
         if notional < meta.min_notional {
             return Err(ExchangeError::Other(format!(
